@@ -471,6 +471,103 @@
                 return window.innerWidth <= 768; // Matches your common mobile breakpoint
             }
 
+            // --- Generic Auto-Scroll-Snap Slider for Mobile ---
+            // Used for: Category Slider (Mobile), Trending This Week (Mobile), Delivered/BTC (Mobile)
+            function initAutoScrollSnapSlider(containerSelector, itemClass = '', speed = 2, intervalTime = 50, initialDelay = 500) {
+                const container = document.querySelector(containerSelector);
+                if (!container) {
+                    console.warn(`Container not found for selector: ${containerSelector}`);
+                    return;
+                }
+
+                let items = Array.from(container.querySelectorAll(itemClass) || container.children);
+                if (items.length <= 1) {
+                    // No need to scroll if only one or no items
+                    return;
+                }
+
+                let scrollInterval;
+                let isHovering = false;
+                const originalItemCount = items.length;
+
+                // Clone initial items for seamless looping
+                // Clone enough items to fill the viewport and allow smooth transition
+                // This value might need tweaking based on item width and container width
+                const numClones = Math.max(1, Math.ceil(container.clientWidth / (items[0] ? items[0].offsetWidth : 1))); // Approx. items to fill view
+                for (let i = 0; i < numClones; i++) {
+                    container.appendChild(items[i].cloneNode(true));
+                }
+                items = Array.from(container.querySelectorAll(itemClass) || container.children); // Update items array with clones
+
+                function autoScroll() {
+                    if (isHovering) return;
+
+                    const currentScroll = container.scrollLeft;
+                    const maxScroll = container.scrollWidth - container.clientWidth;
+
+                    if (maxScroll <= 0) { // If no overflow, no need to scroll
+                        stopAutoScroll();
+                        return;
+                    }
+
+                    // Check if we're near the end of the original content
+                    // If current scroll is beyond the end of the original content block, jump back to start of clones
+                    // The 'buffer' here prevents a visible jump by resetting before the last original item is fully out of view
+                    const resetPoint = originalItemCount * (items[0] ? items[0].offsetWidth + parseInt(window.getComputedStyle(items[0]).marginRight) : 0);
+
+                    if (currentScroll >= resetPoint) {
+                        // Instant jump to the beginning of the cloned section
+                        container.scrollLeft = 0; 
+                    } else {
+                        container.scrollLeft += speed;
+                    }
+                }
+
+                function startAutoScroll() {
+                    stopAutoScroll(); // Clear any existing interval
+                    if (container.scrollWidth > container.clientWidth) { // Only scroll if content overflows
+                        scrollInterval = setInterval(autoScroll, intervalTime);
+                    }
+                }
+
+                function stopAutoScroll() {
+                    clearInterval(scrollInterval);
+                }
+
+                // Initial start after a small delay to ensure rendering and measurements are correct
+                setTimeout(startAutoScroll, initialDelay);
+
+                // Pause on hover
+                container.addEventListener('mouseenter', () => {
+                    isHovering = true;
+                    stopAutoScroll();
+                });
+                container.addEventListener('mouseleave', () => {
+                    isHovering = false;
+                    startAutoScroll();
+                });
+
+                // Re-evaluate on resize
+                let resizeTimeout;
+                window.addEventListener('resize', () => {
+                    clearTimeout(resizeTimeout);
+                    stopAutoScroll(); // Stop current animation
+                    resizeTimeout = setTimeout(() => {
+                        if (isMobileView()) {
+                            // Re-init for mobile, might need to re-clone if layout changed significantly
+                            // For this simple case, just restarting is often enough.
+                            startAutoScroll();
+                        } else {
+                            // If switched to PC, reset scroll and ensure no auto-scroll
+                            container.scrollLeft = 0;
+                            // For PC view, ensure PC-specific styles/JS take over
+                            // (already handled in initializeCategorySlider / initializeHorizontalScroller)
+                        }
+                    }, 300); // Debounce resize
+                });
+            }
+
+
             // --- Category Slider Logic (Conditional PC/Mobile) ---
             const categorySlider = document.querySelector('.category-slider');
             const categorySlides = Array.from(document.querySelectorAll('.category-slide'));
@@ -481,7 +578,14 @@
                 if (!categorySlider || categorySlides.length === 0) return;
 
                 if (!isMobileView()) {
-                    // PC View Logic (Manual Slider)
+                    // PC View Logic (Manual Slider using transform)
+                    categorySlider.style.overflowX = 'hidden'; // Ensure native scroll is off
+                    categorySlider.style.scrollSnapType = 'none'; // Ensure snap is off
+                    categorySlider.style.transition = 'transform 0.5s cubic-bezier(0.645, 0.045, 0.355, 1)'; // Restore PC transition
+
+                    if (categoryPrevButton) categoryPrevButton.style.display = 'flex';
+                    if (categoryNextButton) categoryNextButton.style.display = 'flex';
+
                     let currentIndex = 0;
                     let slideWidth = categorySlides[0].getBoundingClientRect().width;
                     let containerWidth = categorySlider.offsetWidth;
@@ -499,54 +603,44 @@
                         let newTransform = -currentIndex * slideWidth;
 
                         categorySlider.style.transform = `translateX(${newTransform}px)`;
-                        categoryPrevButton.disabled = currentIndex === 0;
-                        categoryNextButton.disabled = currentIndex >= maxIndex;
+                        if (categoryPrevButton) categoryPrevButton.disabled = currentIndex === 0;
+                        if (categoryNextButton) categoryNextButton.disabled = currentIndex >= maxIndex;
                     }
 
                     if (categoryNextButton) {
-                        categoryNextButton.addEventListener('click', () => {
+                        categoryNextButton.onclick = () => { // Use onclick to overwrite mobile behavior
                             const maxIndex = Math.max(0, categorySlides.length - slidesToShow);
                             if (currentIndex < maxIndex) {
                                 currentIndex = Math.min(currentIndex + slidesToScroll, maxIndex);
                                 updateSlider();
                             }
-                        });
+                        };
                     }
 
                     if (categoryPrevButton) {
-                        categoryPrevButton.addEventListener('click', () => {
+                        categoryPrevButton.onclick = () => { // Use onclick to overwrite mobile behavior
                             if (currentIndex > 0) {
                                 currentIndex = Math.max(currentIndex - slidesToScroll, 0);
                                 updateSlider();
                             }
-                        });
+                        };
                     }
-
-                    let resizeTimeout;
-                    window.addEventListener('resize', () => {
-                        clearTimeout(resizeTimeout);
-                        if (!isMobileView()) { // Only update if still in PC view
-                            resizeTimeout = setTimeout(() => {
-                                updateSlider(); 
-                            }, 250);
-                        } else {
-                            // If it becomes mobile, stop PC logic
-                            categorySlider.style.transform = 'translateX(0)'; // Reset transform
-                            if (categoryPrevButton) categoryPrevButton.style.display = 'none';
-                            if (categoryNextButton) categoryNextButton.style.display = 'none';
-                        }
-                    });
-                    updateSlider(); 
+                    
+                    updateSlider(); // Initial update for PC view
                 } else {
-                    // Mobile View: Defer to initMobileAutoScrollSlider, hide buttons
+                    // Mobile View: Automatic Slider using scrollLeft
+                    categorySlider.style.transform = 'translateX(0)'; // Reset transform from PC view
+                    categorySlider.style.overflowX = 'scroll'; // Enable native scroll
+                    categorySlider.style.scrollSnapType = 'x mandatory'; // Enable snapping
+                    categorySlider.style.transition = 'none'; // Disable transform transition
+                    
                     if (categoryPrevButton) categoryPrevButton.style.display = 'none';
                     if (categoryNextButton) categoryNextButton.style.display = 'none';
-                    initMobileAutoScrollSlider('.category-slider', 2); // Initialized below with other mobile-specific sliders
+
+                    initAutoScrollSnapSlider('.category-slider', '.category-slide', 2, 50);
                 }
             }
-            if (categorySlider && categorySlides.length > 0) {
-                initializeCategorySlider();
-            }
+            initializeCategorySlider(); // Initial call
 
             // --- Intersection Observer for Animations ---
             const animatedItemsObserver = new IntersectionObserver((entries) => {
@@ -569,7 +663,7 @@
                 currentYearSpan.textContent = new Date().getFullYear();
             }
 
-            // --- Testimonial Slider Logic (Always Automatic) ---
+            // --- Testimonial Slider Logic (Always Automatic - uses scrollLeft) ---
             function initializeTestimonialSlider() {
                 const sliderWrapper = document.querySelector('.testimonial-slider-wrapper');
                 const testimonialSlides = document.querySelector('.testimonial-slides');
@@ -587,27 +681,47 @@
                 let currentIndex = 0;
                 let slideInterval;
                 const slideDuration = 5000; // 5 seconds for auto-play
+                let isHovering = false;
+
+                // Clone the first testimonial to ensure smooth looping
+                testimonialSlides.appendChild(testimonials[0].cloneNode(true));
+                testimonials.push(testimonials[0].cloneNode(true)); // Update the array for reference
 
                 function showSlide(index) {
-                    if (index < 0) {
-                        currentIndex = testimonials.length - 1; // Loop to end
-                    } else if (index >= testimonials.length) {
-                        currentIndex = 0; // Loop to beginning
+                    // Special handling for seamless loop jump
+                    if (index > testimonials.length - 1) {
+                        // If we are trying to go beyond the last *original* testimonial (which is now a clone)
+                        // Animate to the clone, then instantly jump back to the first original item
+                        currentIndex = testimonials.length - 1; // Temporarily point to the cloned version
+                        testimonialSlides.scrollLeft = testimonials[currentIndex].offsetLeft;
+                        
+                        setTimeout(() => {
+                            testimonialSlides.style.scrollBehavior = 'auto'; // Disable smooth scroll for instant jump
+                            currentIndex = 0; // Reset index to the first original testimonial
+                            testimonialSlides.scrollLeft = testimonials[currentIndex].offsetLeft;
+                            setTimeout(() => { // Re-enable smooth scroll after jump
+                                testimonialSlides.style.scrollBehavior = 'smooth';
+                            }, 50);
+                        }, 600); // Allow time for the smooth scroll to the clone to complete
+                    } else if (index < 0) {
+                        // If trying to go before the first, animate to the last original item
+                        currentIndex = testimonials.length - 2; // Last original testimonial
+                        testimonialSlides.scrollLeft = testimonials[currentIndex].offsetLeft;
                     } else {
                         currentIndex = index;
+                        testimonialSlides.scrollLeft = testimonials[currentIndex].offsetLeft;
                     }
-
-                    const offset = -currentIndex * 100; // Each slide is 100% wide
-                    testimonialSlides.style.transform = `translateX(${offset}%)`;
                 }
 
                 function nextSlide() {
                     showSlide(currentIndex + 1);
                 }
-
+                
                 function startAutoSlide() {
                     stopAutoSlide(); // Clear any existing interval
-                    slideInterval = setInterval(nextSlide, slideDuration);
+                    if (testimonials.length > 1) { // Only auto-slide if there's more than one testimonial
+                        slideInterval = setInterval(nextSlide, slideDuration);
+                    }
                 }
 
                 function stopAutoSlide() {
@@ -619,230 +733,155 @@
                 startAutoSlide(); // Start auto-sliding
 
                 // Pause auto-slide on hover
-                sliderWrapper.addEventListener('mouseenter', stopAutoSlide);
-                sliderWrapper.addEventListener('mouseleave', startAutoSlide);
+                sliderWrapper.addEventListener('mouseenter', () => {
+                    isHovering = true;
+                    stopAutoSlide();
+                });
+                sliderWrapper.addEventListener('mouseleave', () => {
+                    isHovering = false;
+                    startAutoSlide();
+                });
 
                 // Handle window resize (optional, but good for responsiveness)
                 window.addEventListener('resize', () => {
-                    // Re-call showSlide to adjust position if needed, without animation
-                    testimonialSlides.style.transition = 'none'; // Temporarily disable transition
-                    showSlide(currentIndex);
-                    setTimeout(() => { // Re-enable transition after re-positioning
-                        testimonialSlides.style.transition = 'transform 0.6s cubic-bezier(0.645, 0.045, 0.355, 1)';
-                    }, 50); // Small delay to allow reflow
-                    startAutoSlide(); // Restart auto-slide
+                    stopAutoSlide(); // Stop current animation
+                    // Re-position without animation first
+                    testimonialSlides.style.scrollBehavior = 'auto';
+                    testimonialSlides.scrollLeft = testimonials[currentIndex].offsetLeft;
+                    setTimeout(() => {
+                        testimonialSlides.style.scrollBehavior = 'smooth'; // Re-enable smooth scroll
+                        startAutoSlide(); // Restart auto-slide
+                    }, 50); 
                 });
             }
 
             initializeTestimonialSlider(); 
 
-            // --- Generic Horizontal Image Scroller Script (for Delivered & Behind The Craft) ---
-            // These are continuous animations, not snap-to-slide.
+            // --- Horizontal Image Scroller Script (PC: Continuous loop, Mobile: Auto-snap-scroll) ---
             function initializeHorizontalScroller(containerSelector, rotatorSelector, imageClass, scrollSpeedMultiplier = 1) {
                 const rotatorContainer = document.querySelector(containerSelector);
-                if (!rotatorContainer || isMobileView()) { // Don't run on mobile for these specific sections
-                    return;
-                }
+                if (!rotatorContainer) return;
 
                 const imageRotator = rotatorContainer.querySelector(rotatorSelector);
-                if (!imageRotator) {
-                    return;
-                }
+                if (!imageRotator) return;
 
-                const originalImages = Array.from(imageRotator.querySelectorAll('.' + imageClass));
+                if (!isMobileView()) {
+                    // PC View: Continuous animation using transform
+                    imageRotator.style.overflowX = 'hidden'; // Hide scrollbar
+                    imageRotator.style.scrollSnapType = 'none'; // Disable snap
+                    imageRotator.style.transform = `translateX(${0}px)`; // Reset transform
+                    imageRotator.style.transition = 'none'; // Ensure no transition interferes
 
-                if (originalImages.length === 0) {
-                    return;
-                }
+                    const originalImages = Array.from(imageRotator.querySelectorAll('.' + imageClass));
+                    if (originalImages.length === 0) return;
 
-                // Clone images to create infinite loop effect
-                originalImages.forEach(img => {
-                    const clone = img.cloneNode(true);
-                    imageRotator.appendChild(clone);
-                });
-                
-                // Add more clones if there aren't enough images to fill the space for seamless loop
-                if (originalImages.length < 5 && originalImages.length > 0) { 
-                    for(let i=0; i< (5 - originalImages.length) * 2; i++) { // Add enough to cover at least twice
-                        const clone = originalImages[i % originalImages.length].cloneNode(true);
-                        imageRotator.appendChild(clone);
+                    // Ensure enough clones for seamless loop
+                    imageRotator.innerHTML = ''; // Clear existing to prevent duplicate clones on re-init
+                    originalImages.forEach(img => imageRotator.appendChild(img.cloneNode(true)));
+                    // Add more clones if there aren't enough images to fill the space for seamless loop
+                    if (originalImages.length < 5) { // Adjust this threshold as needed
+                        for(let i=0; i< originalImages.length * 2; i++) { 
+                            imageRotator.appendChild(originalImages[i % originalImages.length].cloneNode(true));
+                        }
                     }
-                }
 
-                let currentX = 0;
-                const scrollSpeed = 0.5 * scrollSpeedMultiplier;
-                let singleCycleWidth = 0;
-                let animationFrameId;
+                    let currentX = 0;
+                    const animationSpeed = 0.5 * scrollSpeedMultiplier;
+                    let singleCycleWidth = 0;
+                    let animationFrameId;
 
-                function calculateCycleWidth() {
-                    singleCycleWidth = 0;
-                    if (originalImages.length > 0) {
-                        originalImages.forEach(img => {
-                            const style = window.getComputedStyle(img);
-                            singleCycleWidth += img.offsetWidth + parseFloat(style.marginRight || 0) + parseFloat(style.marginLeft || 0);
-                        });
-                    }
-                }
-                
-                // Use setTimeout to ensure images have rendered and their widths are correct
-                setTimeout(calculateCycleWidth, 100);
+                    const calculateCycleWidth = () => {
+                        singleCycleWidth = 0;
+                        if (originalImages.length > 0) {
+                            originalImages.forEach(img => {
+                                const style = window.getComputedStyle(img);
+                                singleCycleWidth += img.offsetWidth + parseFloat(style.marginRight || 0) + parseFloat(style.marginLeft || 0);
+                            });
+                        }
+                    };
+                    
+                    setTimeout(calculateCycleWidth, 200); // Ensure elements are rendered
 
-                function animateScroller() {
-                    currentX -= scrollSpeed;
-                    imageRotator.style.transform = `translateX(${currentX}px)`;
-
-                    // Reset position when a full cycle has passed
-                    if (singleCycleWidth > 0 && Math.abs(currentX) >= singleCycleWidth) {
-                        const overflow = Math.abs(currentX) - singleCycleWidth;
-                        currentX = -(overflow % singleCycleWidth); // Ensure smooth reset for fractional speeds
+                    const animateScroller = () => {
+                        currentX -= animationSpeed;
                         imageRotator.style.transform = `translateX(${currentX}px)`;
-                    }
-                    animationFrameId = requestAnimationFrame(animateScroller);
-                }
 
-                function startAnimation() {
-                    if (singleCycleWidth > 0 && imageRotator.scrollWidth > rotatorContainer.offsetWidth && !animationFrameId) {
-                         animateScroller();
-                    } else if (animationFrameId) {
-                        cancelAnimationFrame(animationFrameId);
-                        animationFrameId = null;
-                    }
-                }
-
-                let imagesLoaded = 0;
-                const totalImages = originalImages.length;
-                if(totalImages === 0) {
-                    startAnimation(); 
-                    return;
-                }
-
-                originalImages.forEach(img => {
-                    if (img.complete && img.naturalWidth > 0) {
-                        imagesLoaded++;
-                    } else {
-                        img.onload = () => {
-                            imagesLoaded++;
-                            if (imagesLoaded === totalImages) {
-                                calculateCycleWidth();
-                                startAnimation();
-                            }
-                        };
-                        img.onerror = () => { // Handle potential broken images
-                            imagesLoaded++;
-                            if (imagesLoaded === totalImages) {
-                                calculateCycleWidth();
-                                startAnimation();
-                            }
+                        if (singleCycleWidth > 0 && Math.abs(currentX) >= singleCycleWidth) {
+                            currentX = 0; // Reset to 0 for a continuous loop
                         }
-                    }
-                });
-                if (imagesLoaded === totalImages && totalImages > 0) { 
-                    calculateCycleWidth();
-                    startAnimation();
-                }
+                        animationFrameId = requestAnimationFrame(animateScroller);
+                    };
 
-                let resizeTimeout;
-                window.addEventListener('resize', () => {
-                    clearTimeout(resizeTimeout);
-                    if (animationFrameId) {
-                        cancelAnimationFrame(animationFrameId);
-                        animationFrameId = null;
-                    }
-                    resizeTimeout = setTimeout(() => {
-                        if (!isMobileView()) { // Re-init only if still on PC view
-                            calculateCycleWidth();
-                            currentX = 0; // Reset position on resize
-                            imageRotator.style.transform = `translateX(${currentX}px)`;
-                            startAnimation();
-                        } else { // If switched to mobile, stop animation
-                            imageRotator.style.transform = 'translateX(0)'; // Reset transform
+                    const startAnimation = () => {
+                        if (imageRotator.scrollWidth > rotatorContainer.offsetWidth && !animationFrameId) {
+                            animateScroller();
+                        } else if (animationFrameId) {
+                            cancelAnimationFrame(animationFrameId);
+                            animationFrameId = null;
                         }
-                    }, 250);
-                });
+                    };
+
+                    startAnimation(); // Start PC animation
+
+
+                    let resizeTimeoutPC;
+                    window.addEventListener('resize', () => {
+                        clearTimeout(resizeTimeoutPC);
+                        if (!isMobileView()) {
+                            cancelAnimationFrame(animationFrameId);
+                            animationFrameId = null;
+                            resizeTimeoutPC = setTimeout(() => {
+                                calculateCycleWidth();
+                                currentX = 0;
+                                imageRotator.style.transform = `translateX(${currentX}px)`;
+                                startAnimation();
+                            }, 250);
+                        } else {
+                            // If switched to mobile, stop PC animation and clear transform
+                            cancelAnimationFrame(animationFrameId);
+                            animationFrameId = null;
+                            imageRotator.style.transform = 'none';
+                            // initAutoScrollSnapSlider will be called separately for mobile.
+                        }
+                    });
+
+                } else {
+                    // Mobile View: Auto-snap-scroll using scrollLeft
+                    imageRotator.style.transform = 'none'; // Remove transform from PC view
+                    imageRotator.style.overflowX = 'scroll'; // Enable native scroll
+                    imageRotator.style.scrollSnapType = 'x mandatory'; // Enable snapping
+                    imageRotator.style.transition = 'none'; // Disable transform transition
+                    
+                    initAutoScrollSnapSlider(imageRotator.id ? `#${imageRotator.id}` : rotatorSelector, '.' + imageClass, 2, 50);
+                }
             }
 
             initializeHorizontalScroller('#delivered-scroller-container', '#delivered-scroller', 'rotator-image', 0.8);
             initializeHorizontalScroller('#production-scroller-container', '#production-scroller', 'btc-rotator-image', 1);
             initializeHorizontalScroller('#inspiration-scroller-container', '#inspiration-scroller', 'btc-rotator-image', 1.1);
-
-            // --- Mobile-specific Auto-scroll Slider (using scrollLeft) ---
-            function initMobileAutoScrollSlider(containerSelector, scrollSpeed = 2) {
-                const container = document.querySelector(containerSelector);
-                if (!container || !isMobileView()) {
-                    return;
-                }
-
-                let scrollInterval;
-                const scrollDuration = 50; // Milliseconds per scroll step
-
-                // Clone content for seamless looping (if applicable and desired, e.g., for items)
-                // This approach generally works better if you ensure your scroll-snap items are consistent.
-                // For simplicity, we'll just implement the scroll logic, assuming items are already set up with snap.
-                const items = Array.from(container.children);
-                if (items.length > 0) {
-                    items.slice(0, Math.min(items.length, 3)).forEach(item => { // Clone first few items for smoother loop start
-                        container.appendChild(item.cloneNode(true));
-                    });
-                }
-
-
-                function autoScroll() {
-                    const currentScroll = container.scrollLeft;
-                    const maxScroll = container.scrollWidth - container.clientWidth;
-
-                    if (currentScroll + scrollSpeed >= maxScroll) {
-                        // If nearing end, "jump" to the beginning part that contains the cloned content
-                        container.scrollLeft = 0; 
-                    } else {
-                        container.scrollLeft += scrollSpeed;
-                    }
-                }
-
-                function startAutoScroll() {
-                    stopAutoScroll(); // Clear any existing interval
-                    if (container.scrollWidth > container.clientWidth) { // Only scroll if content overflows
-                        scrollInterval = setInterval(autoScroll, scrollDuration);
-                    }
-                }
-
-                function stopAutoScroll() {
-                    clearInterval(scrollInterval);
-                }
-
-                // Pause on hover
-                container.addEventListener('mouseenter', stopAutoScroll);
-                container.addEventListener('mouseleave', startAutoScroll);
-
-                // Initial start
-                startAutoScroll();
-
-                // Re-evaluate on resize
-                let resizeTimeout;
-                window.addEventListener('resize', () => {
-                    clearTimeout(resizeTimeout);
-                    stopAutoScroll(); // Stop current animation
-                    resizeTimeout = setTimeout(() => {
-                        if (isMobileView()) {
-                            startAutoScroll();
-                        } else {
-                            // If switched to PC, reset scroll and ensure no auto-scroll
-                            container.scrollLeft = 0;
-                        }
-                    }, 300); // Debounce resize
-                });
-            }
-
-            // Initialize mobile auto-sliders if in mobile view
-            if (isMobileView()) {
-                initMobileAutoScrollSlider('.category-slider', 2); // Category Slider on Mobile
-                initMobileAutoScrollSlider('.catalogue', 2); // Trending This Week on Mobile
-            }
-            window.addEventListener('resize', () => {
-                // Re-initialize based on current view when resize finishes
+            
+            // --- Initialize Mobile Auto-Scroll Sliders conditionally ---
+            const initializeMobileSliders = () => {
                 if (isMobileView()) {
-                    initMobileAutoScrollSlider('.category-slider', 2);
-                    initMobileAutoScrollSlider('.catalogue', 2);
+                    initAutoScrollSnapSlider('.category-slider', '.category-slide', 2, 50);
+                    initAutoScrollSnapSlider('.catalogue', '.catalogue-item', 2, 50);
+                    // The image rotators above also call initAutoScrollSnapSlider for mobile within their own function.
                 }
+            };
+            
+            initializeMobileSliders(); // Initial call for mobile sliders
+
+            // Re-check and initialize on resize complete
+            let resizeCompleteTimeout;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeCompleteTimeout);
+                resizeCompleteTimeout = setTimeout(() => {
+                    initializeCategorySlider(); // Re-evaluate category slider mode (PC/Mobile)
+                    initializeHorizontalScroller('#delivered-scroller-container', '#delivered-scroller', 'rotator-image', 0.8);
+                    initializeHorizontalScroller('#production-scroller-container', '#production-scroller', 'btc-rotator-image', 1);
+                    initializeHorizontalScroller('#inspiration-scroller-container', '#inspiration-scroller', 'btc-rotator-image', 1.1);
+                    initializeMobileSliders(); // Ensure mobile sliders are correctly set up
+                }, 400); // Debounce for a slightly longer time to ensure all styles are applied
             });
 
         });
