@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shop - ChristopherZ</title>
+    <link rel="stylesheet" href="shop.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Raleway:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="page-shop">
+
+    <header>
+        <div class="header-container">
+            <a href="index.html" class="logo">Christopher<span>Z</span></a>
+            <nav id="main-nav">
+                <ul>
+                    <li><a href="index.html">Home</a></li>
+                    <li><a href="collections.html">Collection</a></li>
+                    <li><a href="shop.html" class="active">Shop</a></li>
+                    <li><a href="about.html">About</a></li>
+                    <li><a href="contact.html">Contact</a></li>
+                </ul>
+            </nav>
+            <div class="header-right">
+                <a href="#" class="icon-btn" id="header-search-icon-trigger">
+                    <i class="fas fa-search"></i>
+                </a>
+                <a href="#" class="icon-btn cart-icon-btn"> 
+                    <i class="fas fa-shopping-cart"></i>
+                    <span class="cart-item-count-badge" id="cart-item-count-badge">0</span>
+                </a>
+                <button class="menu-btn"><i class="fas fa-bars"></i></button>
+            </div>
+        </div>
+    </header>
+
+    <main class="shop-main-content">
+        <section class="shop-hero">
+             <div class="hero-bg-overlay"></div>
+            <div class="container hero-content animated fadeInUp">
+                <h1>Explore Our Curated Shop</h1>
+                <p>Discover individual pieces that embody the ChristopherZ commitment to quality and style.</p>
+            </div>
+        </section>
+
+        <section class="shop-controls-section">
+            <div class="container controls-container animated fadeInUp delay-1">
+                 <button class="filter-toggle-btn" id="filter-toggle">
+                     <i class="fas fa-filter"></i> Filter Results
+                 </button>
+                 <div class="results-sort-wrapper">
+                     <div class="search-control-shop">
+                        <input type="text" id="shop-search-input" placeholder="Search products...">
+                     </div>
+                     <span class="product-count" id="product-count">Showing 0 results</span>
+                     <div class="sort-control">
+                         <label for="sort-options">Sort by:</label>
+                         <select name="sort-options" id="sort-options">
+                             <option value="created_at-desc" selected>Newest Arrivals</option>
+                             <option value="name-asc">Name: A-Z</option>
+                             <option value="name-desc">Name: Z-A</option>
+                             <option value="price-asc">Price: Low to High</option>
+                             <option value="price-desc">Price: High to Low</option>
+                         </select>
+                     </div>
+                 </div>
+            </div>
+        </section>
+
+        <section class="shop-main-area content-section">
+            <div class="container shop-layout-container">
+                <aside class="filters-sidebar animated fadeInLeft" id="filters-sidebar">
+                    <div class="sidebar-header">
+                        <h3>Filter By</h3>
+                        <button class="close-filters-btn" id="close-filters-btn" aria-label="Close Filters"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="sidebar-content">
+                        <div class="filter-group" id="category-filter-group">
+                            <h4>Category</h4>
+                            <ul class="filter-list" id="category-filter-list">
+                                <li class="filter-loading">Loading categories...</li>
+                            </ul>
+                        </div>
+                         <div class="filter-group">
+                            <h4>Price Range</h4>
+                            <div class="price-range-inputs">
+                                <div class="price-input-group">
+                                    <label for="min-price">Min:</label> 
+                                    <input type="number" id="min-price" placeholder="0" min="0">
+                                </div>
+                                <div class="price-input-group">
+                                    <label for="max-price">Max:</label> 
+                                    <input type="number" id="max-price" placeholder="Any" min="0">
+                                </div>
+                            </div>
+                         </div>
+                         <div class="filter-group" id="material-filter-group">
+                            <h4>Material</h4>
+                             <ul class="filter-list" id="material-filter-list">
+                                <li class="filter-loading">Loading materials...</li>
+                            </ul>
+                         </div>
+                         <button class="btn-primary apply-filters-btn" id="apply-filters-btn">Apply Filters</button>
+                         <button class="btn-secondary clear-filters-btn" id="clear-filters-btn" style="margin-top: 10px; width:100%;">Clear All Filters</button>
+                    </div>
+                </aside>
+
+                <div class="product-grid-main-area animated fadeInRight">
+                    <div id="loading-products-message" class="loading-status-shop" style="display:none;">Loading products...</div>
+                    <div id="error-products-message" class="error-status-shop" style="display:none;"></div>
+                    <div class="product-grid" id="shop-product-grid">
+                        <div class="grid-placeholder-initial" id="grid-placeholder-initial">
+                            <p>Loading products, please wait...</p>
+                        </div>
+                    </div>
+                    <nav class="pagination-section animated fadeInUp delay-2" aria-label="Product page navigation" id="pagination-controls" style="display: none;">
+                        <ul class="pagination-container">
+                            <li><a href="#" class="page-link prev disabled" aria-label="Previous Page"><i class="fas fa-chevron-left"></i></a></li>
+                            <li><a href="#" class="page-link active" aria-current="page">1</a></li>
+                            <li><a href="#" class="page-link next" aria-label="Next Page"><i class="fas fa-chevron-right"></i></a></li>
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <!-- Footer content from previous version -->
+        <div class="footer-container">
+            <div class="footer-top">
+                 <div class="footer-column about">
+                    <a href="index.html" class="footer-logo logo">Christopher<span>Z</span></a>
+                    <p class="footer-tagline">Timeless Luxury For Modern Living. Crafting spaces that tell your story since 2023.</p>
+                </div>
+                 <div class="footer-column links">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="index.html">Home</a></li>
+                        <li><a href="collections.html">Collection</a></li>
+                        <li><a href="shop.html">Shop</a></li>
+                        <li><a href="about.html">About Us</a></li>
+                        <li><a href="contact.html">Contact</a></li>
+                    </ul>
+                </div>
+                 <div class="footer-column social">
+                    <h4>Follow Us</h4>
+                    <ul class="footer-social-links">
+                        <li><a href="#" aria-label="Instagram"><i class="fab fa-instagram"></i></a></li>
+                        <li><a href="#" aria-label="Pinterest"><i class="fab fa-pinterest"></i></a></li>
+                        <li><a href="#" aria-label="Facebook"><i class="fab fa-facebook"></i></a></li>
+                        <li><a href="#" aria-label="Twitter"><i class="fab fa-twitter"></i></a></li>
+                    </ul>
+                     <h4 class="contact-heading">Contact</h4>
+                     <p>123 Luxury Lane, Design City, DC 12345<br>
+                        <a href="tel:+1234567890">(123) 456-7890</a><br>
+                        <a href="mailto:inquiries@christopherz.com">inquiries@christopherz.com</a>
+                     </p>
+                </div>
+                <div class="footer-column newsletter">
+                    <h4>Stay Inspired</h4>
+                    <p>Receive exclusive updates, new arrivals, and design tips.</p>
+                    <form class="newsletter-form">
+                        <input type="email" placeholder="Enter your email" required>
+                        <button type="submit" class="btn-primary">Subscribe</button>
+                    </form>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>© <span id="current-year"></span> ChristopherZ. All Rights Reserved.</p>
+                <ul class="footer-legal-links">
+                    <li><a href="#">Privacy Policy</a></li>
+                    <li><a href="#">Terms of Service</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-background-accent"></div>
+    </footer>
+
+    <div class="cart-sidebar" id="cart-sidebar">
+        <div class="cart-header">
+            <h3>Your Cart</h3>
+            <button class="cart-close-btn" id="cart-close-btn" aria-label="Close Cart">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="cart-body" id="cart-body">
+            <!-- Items will be dynamically inserted here by JS -->
+            <p class="cart-empty-message" id="cart-empty-message-placeholder">Your cart is currently empty.</p> 
+        </div>
+        <div class="cart-footer">
+            <div class="cart-subtotal">
+                <span>Subtotal:</span>
+                <span id="cart-subtotal-amount">$0.00</span>
+            </div>
+            <button class="btn-primary checkout-btn" id="checkout-btn">Proceed to Checkout</button>
+            <button class="btn-secondary continue-shopping-btn" id="continue-shopping-btn">Continue Shopping</button>
+        </div>
+    </div>
+    <div class="cart-overlay" id="cart-overlay"></div>
+
+     <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const menuButton = document.querySelector('.menu-btn');
+            const mainNav = document.getElementById('main-nav');
+            const body = document.body; // Defined once here
+            if (menuButton && mainNav) {
+                menuButton.addEventListener('click', () => {
+                    mainNav.classList.toggle('mobile-nav-active');
+                    body.classList.toggle('mobile-nav-active'); 
+                    const icon = menuButton.querySelector('i');
+                    if (mainNav.classList.contains('mobile-nav-active')) {
+                        icon.classList.remove('fa-bars'); icon.classList.add('fa-times');
+                    } else {
+                        icon.classList.remove('fa-times'); icon.classList.add('fa-bars');
+                    }
+                });
+            }
+            const header = document.querySelector('header');
+            window.addEventListener('scroll', () => {
+                if (header) {
+                    if (window.scrollY > 50) { header.classList.add('scrolled'); }
+                    else { header.classList.remove('scrolled'); }
+                }
+            });
+            const observerOptions = { threshold: 0.1, rootMargin: '0px 0px -30px 0px' };
+            const animatedItemsObserver = new IntersectionObserver((entries, observer) => {
+                entries.forEach((entry, index) => {
+                    if (entry.isIntersecting) {
+                        const delay = entry.target.dataset.delay || `${index * 0.05}s`; 
+                        entry.target.style.animationDelay = delay;
+                        entry.target.classList.add('visible');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, observerOptions);
+            document.querySelectorAll('.animated').forEach(item => { animatedItemsObserver.observe(item); });
+            document.body.classList.add('loaded'); // For page load animation
+            const currentYearSpan = document.getElementById('current-year');
+            if (currentYearSpan) { currentYearSpan.textContent = new Date().getFullYear(); }
+
+            // Filter Sidebar Toggle
+            const filterToggleButton = document.getElementById('filter-toggle');
+            const filtersSidebarEl = document.getElementById('filters-sidebar');
+            const closeFiltersButton = document.getElementById('close-filters-btn');
+            
+            if (filterToggleButton && filtersSidebarEl && closeFiltersButton) {
+                filterToggleButton.addEventListener('click', () => {
+                    filtersSidebarEl.classList.add('active');
+                    body.classList.add('filters-sidebar-active'); 
+                });
+                closeFiltersButton.addEventListener('click', () => {
+                    filtersSidebarEl.classList.remove('active');
+                    body.classList.remove('filters-sidebar-active'); 
+                });
+            }
+
+            // Cart Sidebar Toggle
+            const cartIconBtnElements = document.querySelectorAll('.cart-icon-btn'); 
+            const cartSidebarEl = document.getElementById('cart-sidebar'); 
+            const cartCloseBtnEl = document.getElementById('cart-close-btn'); 
+            const cartOverlayEl = document.getElementById('cart-overlay'); 
+            const continueShoppingBtnEl = document.getElementById('continue-shopping-btn'); 
+
+            function openCart() {
+                if (cartSidebarEl) cartSidebarEl.classList.add('active');
+                if (cartOverlayEl) cartOverlayEl.classList.add('active');
+                body.classList.add('cart-sidebar-active'); // Use this for scroll lock
+            }
+
+            function closeCart() {
+                if (cartSidebarEl) cartSidebarEl.classList.remove('active');
+                if (cartOverlayEl) cartOverlayEl.classList.remove('active');
+                body.classList.remove('cart-sidebar-active'); // Use this for scroll lock
+            }
+
+            cartIconBtnElements.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    openCart();
+                });
+            });
+            
+            if (cartCloseBtnEl) cartCloseBtnEl.addEventListener('click', closeCart);
+            if (cartOverlayEl) cartOverlayEl.addEventListener('click', closeCart);
+            if (continueShoppingBtnEl) continueShoppingBtnEl.addEventListener('click', closeCart);
+            
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && cartSidebarEl && cartSidebarEl.classList.contains('active')) {
+                    closeCart();
+                }
+            });
+        });
+    </script>
+    <script src="js/shop_logic.js"></script> 
+
+</body>
+</html>
